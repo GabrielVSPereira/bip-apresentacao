@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BIP · Como funcionam as Tarefas Recorrentes e os POPs</title>
+<style>
+  :root {
+    --maroon: #8D1638;
+    --maroon-dark: #6B0F29;
+    --gold: #FCBF3D;
+    --pink: #D02F61;
+    --bg: #F7F5F4;
+    --card: #FFFFFF;
+    --ink: #2B2320;
+    --ink-soft: #6E6C6C;
+    --border: #E8E1DD;
+    --ok: #3F7A4E;
+    --navy: #133152;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--ink); line-height: 1.55;
+  }
+  header {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
+    color: white; padding: 0.9rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    border-bottom: 4px solid var(--gold);
+  }
+  header .brand { font-size: 1.25rem; font-weight: 700; }
+  header .brand span { color: var(--gold); }
+  nav { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+  nav a {
+    color: #F0D9DF; text-decoration: none; font-size: 0.82rem; font-weight: 600;
+    padding: 0.4rem 0.75rem; border-radius: 999px; transition: all .2s;
+  }
+  nav a:hover, nav a.active { background: rgba(255,255,255,0.15); color: var(--gold); }
+  .hero {
+    background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
+    color: white; padding: 3.2rem 1.5rem 3.5rem; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .hero::after {
+    content: ""; position: absolute; right: -50px; top: -50px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+  }
+  .hero h1 { font-size: 2.4rem; margin-bottom: 0.6rem; position: relative; }
+  .hero h1 span { color: var(--gold); }
+  .hero p { font-size: 1.1rem; color: #F0D9DF; max-width: 620px; margin: 0 auto; position: relative; }
+  .hero .audience {
+    display: inline-block; margin-top: 1.2rem; background: rgba(252,191,61,0.2);
+    border: 1px solid var(--gold); color: var(--gold); font-size: 0.8rem;
+    font-weight: 600; padding: 0.35rem 0.9rem; border-radius: 999px; position: relative;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.2rem 4rem; }
+  section { margin-bottom: 3.2rem; scroll-margin-top: 70px; }
+  h2 {
+    font-size: 1.4rem; color: var(--ink); margin-bottom: 0.3rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  h2 .num {
+    background: var(--maroon); color: white; width: 28px; height: 28px;
+    border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 700; flex-shrink: 0;
+  }
+  .section-sub { color: var(--ink-soft); margin-bottom: 1.4rem; font-size: 0.95rem; }
+  .card {
+    background: var(--card); border-radius: 14px; padding: 1.3rem 1.4rem;
+    border: 1px solid var(--border); box-shadow: 0 1px 3px rgba(141,22,56,0.04);
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    nav { display: none; }
+    .hero h1 { font-size: 1.8rem; }
+  }
+  .mockup {
+    background: #1a1a2e; border-radius: 12px; overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.18); margin: 1.2rem 0;
+  }
+  .mockup-bar {
+    background: var(--navy); padding: 0.55rem 1rem;
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .mockup-bar .dots { display: flex; gap: 5px; }
+  .mockup-bar .dots span { width: 9px; height: 9px; border-radius: 50%; background: #555; }
+  .mockup-bar .dots span:nth-child(1) { background: #ff5f57; }
+  .mockup-bar .dots span:nth-child(2) { background: #febc2e; }
+  .mockup-bar .dots span:nth-child(3) { background: #28c840; }
+  .mockup-bar .title { color: #A5B4C8; font-size: 0.75rem; margin-left: 0.5rem; }
+  .mockup-body { background: #f8fafc; padding: 1.2rem; color: var(--ink); min-height: 140px; }
+  .steps { counter-reset: step; }
+  .step-item {
+    display: flex; gap: 1rem; margin-bottom: 0.9rem;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1rem 1.2rem; cursor: pointer; transition: all .2s;
+  }
+  .step-item:hover, .step-item.open { border-color: var(--maroon); box-shadow: 0 4px 14px rgba(141,22,56,0.1); }
+  .step-num {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--maroon);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem; flex-shrink: 0;
+  }
+  .step-body h4 { font-size: 0.98rem; margin-bottom: 0.15rem; }
+  .step-body p { font-size: 0.88rem; color: var(--ink-soft); }
+  .step-detail {
+    display: none; margin-top: 0.7rem; padding-top: 0.7rem;
+    border-top: 1px dashed var(--border); font-size: 0.88rem; color: var(--ink);
+  }
+  .step-item.open .step-detail { display: block; }
+  .step-detail ul { margin: 0.4rem 0 0 1.1rem; }
+  .step-detail li { margin-bottom: 0.25rem; }
+  .flow {
+    display: flex; align-items: stretch; justify-content: center;
+    gap: 0.5rem; flex-wrap: wrap; margin: 1.5rem 0;
+  }
+  .flow-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.2rem; text-align: center; min-width: 130px; flex: 1;
+    max-width: 170px;
+  }
+  .flow-box .ico { font-size: 1.6rem; margin-bottom: 0.4rem; }
+  .flow-box strong { display: block; font-size: 0.92rem; margin-bottom: 0.2rem; }
+  .flow-box small { color: var(--ink-soft); font-size: 0.8rem; }
+  .flow-box.highlight { border-color: var(--gold); background: #FFF8E8; }
+  .flow-arrow { display: flex; align-items: center; color: var(--gold); font-size: 1.4rem; font-weight: 700; }
+  .feat {
+    display: flex; gap: 1rem; align-items: flex-start;
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.15rem 1.3rem; margin-bottom: 0.8rem;
+  }
+  .feat .icon-box {
+    width: 44px; height: 44px; border-radius: 10px; background: #FFF0F3;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+  }
+  .feat h4 { font-size: 0.98rem; margin-bottom: 0.2rem; }
+  .feat p { font-size: 0.88rem; color: var(--ink-soft); }
+  .tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tab {
+    padding: 0.45rem 1rem; border-radius: 999px; border: 1px solid var(--border);
+    background: white; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+    color: var(--ink-soft); transition: all .2s;
+  }
+  .tab.active, .tab:hover { background: var(--maroon); color: white; border-color: var(--maroon); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .tip {
+    background: #FFF8E8; border: 1px solid #F0DCA0; border-radius: 10px;
+    padding: 0.9rem 1.1rem; font-size: 0.88rem; color: #6B5300; margin: 1rem 0;
+  }
+  .tip strong { color: #9A6B00; }
+  .note {
+    background: #EEF4FF; border: 1px solid #B8D0F5; border-radius: 10px;
+    padding: 0.9rem 1.1rem; font-size: 0.88rem; color: #1E3A5F; margin: 1rem 0;
+  }
+  .note strong { color: #2563EB; }
+  .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9rem; }
+  @media (max-width: 600px) { .why-grid { grid-template-columns: 1fr; } }
+  .why-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 1.1rem 1.2rem;
+  }
+  .why-item h4 { color: var(--maroon); font-size: 0.95rem; margin-bottom: 0.3rem; }
+  .why-item p { font-size: 0.88rem; color: var(--ink-soft); }
+  footer {
+    background: var(--maroon); color: #F0D9DF; text-align: center;
+    padding: 1.6rem; font-size: 0.88rem; border-top: 4px solid var(--gold);
+  }
+  footer a { color: var(--gold); }
+  .form-row { margin-bottom: 0.8rem; }
+  .form-row label { display: block; font-size: 0.78rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--ink-soft); }
+  .form-fake {
+    background: white; border: 1px solid var(--border); border-radius: 8px;
+    padding: 0.55rem 0.8rem; font-size: 0.88rem; color: var(--ink-soft);
+  }
+  .form-fake.filled { color: var(--ink); }
+  .btn-fake {
+    display: inline-block; background: var(--maroon); color: white;
+    padding: 0.5rem 1.2rem; border-radius: 8px; font-size: 0.88rem; font-weight: 600;
+  }
+  .btn-fake.blue { background: #2563EB; }
+  .hierarchy {
+    display: flex; flex-direction: column; gap: 0.6rem; margin: 1.2rem 0;
+  }
+  .hier-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.9rem 1.1rem; display: flex; align-items: center; gap: 0.8rem;
+  }
+  .hier-item .badge {
+    background: var(--maroon); color: white; font-size: 0.72rem; font-weight: 700;
+    padding: 0.25rem 0.55rem; border-radius: 6px; white-space: nowrap;
+  }
+  .hier-item.level2 { margin-left: 1.5rem; border-left: 3px solid var(--gold); }
+  .hier-item.level3 { margin-left: 3rem; border-left: 3px solid #D02F61; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">BIP <span>· Permanente</span></div>
+  <nav>
+    <a href="#problema" class="active">O problema</a>
+    <a href="#recorrentes">Recorrentes</a>
+    <a href="#criar">Como criar</a>
+    <a href="#acompanhar">Acompanhar</a>
+    <a href="#pops">POPs</a>
+    <a href="#criar-pop">Criar POP</a>
+    <a href="#ciclo">Ciclo</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1>Tarefas Recorrentes<br><span>e POPs de Tarefas</span></h1>
+  <p>Entenda como a ferramenta funciona e como ela ajuda cada setor a padronizar rotinas, garantir prazos e capacitar a equipe.</p>
+  <div class="audience">Para coordenadores de todos os setores</div>
+</div>
+
+<div class="container">
+
+  <!-- 1. O PROBLEMA -->
+  <section id="problema">
+    <h2><span class="num">1</span> O problema que a ferramenta resolve</h2>
+    <p class="section-sub">Antes do BIP, rotinas críticas dependiam de memória, planilhas soltas e cobrança manual.</p>
+    <div class="grid-2">
+      <div class="card" style="border-left: 4px solid #B3261E;">
+        <h3 style="font-size:1rem; margin-bottom:0.5rem;">Antes</h3>
+        <ul style="margin-left:1.1rem; font-size:0.9rem; color:var(--ink-soft);">
+          <li>Alguém esquecia de gerar a tarefa</li>
+          <li>Cada um fazia de um jeito</li>
+          <li>Difícil saber se foi feito no prazo</li>
+          <li>Novo colaborador não sabia o passo a passo</li>
+          <li>Cobrança manual por WhatsApp ou e-mail</li>
+        </ul>
+      </div>
+      <div class="card" style="border-left: 4px solid var(--ok);">
+        <h3 style="font-size:1rem; margin-bottom:0.5rem;">Com o BIP</h3>
+        <ul style="margin-left:1.1rem; font-size:0.9rem; color:var(--ink-soft);">
+          <li>O sistema cria a tarefa sozinho</li>
+          <li>Todos seguem o mesmo padrão (POP em PDF)</li>
+          <li>Prazo e status visíveis em tempo real</li>
+          <li>POP vinculado à tarefa no momento da execução</li>
+          <li>Painel de acompanhamento automático</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. O QUE SÃO TAREFAS RECORRENTES -->
+  <section id="recorrentes">
+    <h2><span class="num">2</span> O que são Tarefas Recorrentes?</h2>
+    <p class="section-sub">São regras configuradas <strong>uma única vez</strong>. A partir daí, o BIP gera automaticamente os cartões no Kanban na frequência definida.</p>
+
+    <div class="flow">
+      <div class="flow-box">
+        <div class="ico">⚙️</div>
+        <strong>Você configura</strong>
+        <small>uma vez</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box highlight">
+        <div class="ico">🔄</div>
+        <strong>BIP gera</strong>
+        <small>todo dia, semana ou mês</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">
+        <div class="ico">📋</div>
+        <strong>Equipe executa</strong>
+        <small>no Kanban</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">
+        <div class="ico">📊</div>
+        <strong>Você acompanha</strong>
+        <small>no painel</small>
+      </div>
+    </div>
+
+    <div class="grid-3" style="margin-top:1.2rem;">
+      <div class="card">
+        <h3 style="font-size:0.95rem; color:var(--maroon);">Frequência</h3>
+        <p style="font-size:0.88rem; color:var(--ink-soft); margin-top:0.3rem;">Diária, semanal ou mensal. Pode limitar só a dias úteis.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.95rem; color:var(--maroon);">Prazos</h3>
+        <p style="font-size:0.88rem; color:var(--ink-soft); margin-top:0.3rem;">Prazo meta (interno) e prazo legal (obrigação). O sistema alerta atrasos.</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.95rem; color:var(--maroon);">Vínculos</h3>
+        <p style="font-size:0.88rem; color:var(--ink-soft); margin-top:0.3rem;">Responsáveis, observadores, quadro de destino e POP (PDF) obrigatório.</p>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>Para o coordenador:</strong> pense em qualquer rotina do seu setor que se repete (conferência de estoque, fechamento, envio de relatório, validação de documento…). Essa rotina pode virar uma Tarefa Recorrente.
+    </div>
+  </section>
+
+  <!-- 3. COMO CRIAR RECORRENTE -->
+  <section id="criar">
+    <h2><span class="num">3</span> Como criar uma Tarefa Recorrente</h2>
+    <p class="section-sub">Caminho: <strong>Kanban → Tarefas Recorrentes → + Nova Tarefa Recorrente</strong>. Clique em cada etapa para ver os detalhes.</p>
+
+    <div class="note">
+      <strong>Importante:</strong> o campo de POP (módulo de treinamento) é obrigatório. Por isso, as trilhas e os módulos de POP precisam existir <strong>antes</strong> de criar a recorrente. Veja a seção 6 para o passo a passo de criação do POP.
+    </div>
+
+    <div class="steps">
+      <div class="step-item open" onclick="this.classList.toggle('open')">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Abrir o formulário</h4>
+          <p>Na tela de Tarefas Recorrentes, clique no botão “+ Nova Tarefa Recorrente”.</p>
+          <div class="step-detail">
+            O formulário abre em um modal sobre a tela. Todos os campos com * são obrigatórios.
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Título e descrição</h4>
+          <p>Dê um nome claro e escreva o que a pessoa precisa fazer.</p>
+          <div class="step-detail">
+            <strong>Exemplo de título:</strong> “Conferência semanal de validade – Loja”<br>
+            <strong>Descrição:</strong> instruções objetivas do que verificar, onde registrar e o que anexar.
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Frequência, data e prioridade</h4>
+          <p>Escolha se a tarefa se repete todo dia, toda semana ou todo mês.</p>
+          <div class="step-detail">
+            <ul>
+              <li><strong>Diária</strong>: gera todo dia (pode marcar “somente dias úteis”)</li>
+              <li><strong>Semanal</strong>: gera no dia da semana escolhido</li>
+              <li><strong>Mensal</strong>: gera no dia do mês definido</li>
+            </ul>
+            Defina também a data de início e a prioridade (Baixa / Média / Alta).
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Regra de competência (opcional)</h4>
+          <p>Usada principalmente em rotinas fiscais e contábeis.</p>
+          <div class="step-detail">
+            Permite vincular a tarefa a um mês de referência com defasagem (ex.: D+1 = tarefa do mês seguinte). Se a rotina do seu setor não depende de competência fiscal, deixe “Nenhuma”.
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Quadro e coluna de destino</h4>
+          <p>Onde o cartão vai aparecer no Kanban quando for gerado.</p>
+          <div class="step-detail">
+            Escolha o quadro da sua equipe e a coluna inicial (geralmente “Backlog” ou “A fazer”). Assim o responsável já encontra a tarefa no lugar certo.
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <h4>POP (módulo) + Responsáveis</h4>
+          <p>Vincule o POP em PDF e escolha quem executa e quem observa.</p>
+          <div class="step-detail">
+            <ul>
+              <li><strong>Módulo de Treinamento</strong>: o POP em PDF que ensina o passo a passo (obrigatório)</li>
+              <li><strong>Responsáveis</strong>: quem deve executar a tarefa</li>
+              <li><strong>Observadores</strong>: quem acompanha (ex.: o coordenador)</li>
+            </ul>
+            Salve. A partir da data de início, o BIP passa a gerar os cartões automaticamente.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mockup" style="margin-top:1.5rem;">
+      <div class="mockup-bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span class="title">BIP · Nova Tarefa Recorrente</span>
+      </div>
+      <div class="mockup-body">
+        <div class="form-row">
+          <label>Título da Recorrência *</label>
+          <div class="form-fake filled">Conferência semanal de validade – Loja</div>
+        </div>
+        <div class="form-row">
+          <label>Descrição / Instruções</label>
+          <div class="form-fake">Verificar produtos próximos do vencimento, registrar no sistema e anexar o relatório…</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.7rem;">
+          <div class="form-row">
+            <label>Frequência *</label>
+            <div class="form-fake filled">Semanal</div>
+          </div>
+          <div class="form-row">
+            <label>Data de Início *</label>
+            <div class="form-fake filled">20/10/2026</div>
+          </div>
+          <div class="form-row">
+            <label>Prioridade</label>
+            <div class="form-fake filled">Média</div>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Módulo de Treinamento (POP) *</label>
+          <div class="form-fake filled">📄 Conferência de Validade – POP.pdf</div>
+        </div>
+        <div style="margin-top:0.5rem;">
+          <span class="btn-fake">Salvar recorrência</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. ACOMPANHAR -->
+  <section id="acompanhar">
+    <h2><span class="num">4</span> Como acompanhar a execução</h2>
+    <p class="section-sub">Duas telas principais: o <strong>Painel de Acompanhamento</strong> das recorrentes e os <strong>Relatórios e SLA</strong> do Kanban.</p>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab(event,'tab-painel')">Painel de Acompanhamento</button>
+      <button class="tab" onclick="showTab(event,'tab-sla')">Relatórios e SLA</button>
+    </div>
+
+    <div id="tab-painel" class="tab-panel active">
+      <div class="feat">
+        <div class="icon-box">📅</div>
+        <div>
+          <h4>Visão diária por regra e por responsável</h4>
+          <p>Veja, para cada dia, se a tarefa foi <strong>Concluída</strong>, está em <strong>Folga</strong> (ainda não chegou o dia) ou <strong>Atrasada</strong>. Há também a Taxa de Adesão por regra.</p>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="icon-box">🔍</div>
+        <div>
+          <h4>Filtros por período e status</h4>
+          <p>Filtre por tarefa recorrente específica, status e intervalo de datas. Ideal para a reunião semanal com a equipe.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <strong>Caminho:</strong> Kanban → Tarefas Recorrentes → Painel de Acompanhamento
+      </div>
+    </div>
+
+    <div id="tab-sla" class="tab-panel">
+      <div class="feat">
+        <div class="icon-box">📈</div>
+        <div>
+          <h4>Indicadores de produtividade</h4>
+          <p>Total de tarefas, concluídas, em andamento e <strong>Taxa de SLA</strong> (percentual dentro do prazo).</p>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="icon-box">⏱️</div>
+        <div>
+          <h4>Tempo de execução</h4>
+          <p>Cronômetro total de trabalho e tempo médio por tarefa concluída. Útil para dimensionar carga.</p>
+        </div>
+      </div>
+      <div class="feat">
+        <div class="icon-box">👤</div>
+        <div>
+          <h4>Produtividade por responsável</h4>
+          <p>Ranking individual: total, concluídas, atrasadas, tempo gasto e barra de progresso.</p>
+        </div>
+      </div>
+      <div class="tip">
+        <strong>Caminho:</strong> Kanban → Relatórios e SLA
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. POPs (conceito) -->
+  <section id="pops">
+    <h2><span class="num">5</span> POPs de Tarefas: o “como fazer”</h2>
+    <p class="section-sub">A Tarefa Recorrente resolve o <strong>quando</strong> e o <strong>quem</strong>. O POP (PDF) resolve o <strong>como</strong>.</p>
+
+    <div class="flow">
+      <div class="flow-box">
+        <div class="ico">🔄</div>
+        <strong>Tarefa Recorrente</strong>
+        <small>Quando e quem</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box">
+        <div class="ico">❓</div>
+        <strong>Como executar?</strong>
+        <small>Passo a passo</small>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box highlight">
+        <div class="ico">📄</div>
+        <strong>POP em PDF</strong>
+        <small>Procedimento padrão</small>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:1rem;">
+      <div class="card">
+        <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">O que é o POP de Tarefa?</h3>
+        <p style="font-size:0.88rem; color:var(--ink-soft);">
+          Um procedimento operacional padrão em <strong>PDF</strong> que descreve exatamente como executar aquela rotina. Fica na Central de Treinamentos (Educa Permanente), organizado em trilhas e módulos por área.
+        </p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:0.95rem; margin-bottom:0.5rem;">Por que é obrigatório?</h3>
+        <p style="font-size:0.88rem; color:var(--ink-soft);">
+          Ao criar a Tarefa Recorrente, o sistema exige o vínculo com um módulo de treinamento. Assim, quando a tarefa é gerada, o responsável já tem o POP em PDF para consultar o passo a passo.
+        </p>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Ordem prática de implantação:</strong> primeiro crie a trilha e o módulo com o PDF do POP. Depois configure a Tarefa Recorrente vinculando esse módulo. Sem o POP cadastrado, a recorrente não pode ser salva.
+    </div>
+  </section>
+
+  <!-- 6. COMO CRIAR POP -->
+  <section id="criar-pop">
+    <h2><span class="num">6</span> Como criar a trilha, o módulo e o POP</h2>
+    <p class="section-sub">Caminho: <strong>POPs de Tarefas</strong> (menu lateral). A estrutura tem três níveis.</p>
+
+    <div class="hierarchy">
+      <div class="hier-item">
+        <span class="badge">1 · TRILHA</span>
+        <div>
+          <strong>Agrupa os módulos do setor</strong>
+          <p style="font-size:0.85rem; color:var(--ink-soft);">Ex.: “Operações de Loja”, “Fiscal e Contábil”, “RH”</p>
+        </div>
+      </div>
+      <div class="hier-item level2">
+        <span class="badge">2 · MÓDULO</span>
+        <div>
+          <strong>Uma rotina específica dentro da trilha</strong>
+          <p style="font-size:0.85rem; color:var(--ink-soft);">Ex.: “Conferência de Validade”, “Fechamento de Caixa”</p>
+        </div>
+      </div>
+      <div class="hier-item level3">
+        <span class="badge">3 · POP (PDF)</span>
+        <div>
+          <strong>O arquivo PDF com o procedimento</strong>
+          <p style="font-size:0.85rem; color:var(--ink-soft);">Anexado ao módulo. É o que o colaborador consulta na hora de executar.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps" style="margin-top:1.5rem;">
+      <div class="step-item open" onclick="this.classList.toggle('open')">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Criar a Trilha</h4>
+          <p>Na tela de POPs de Tarefas, crie uma trilha para o seu setor (se ainda não existir).</p>
+          <div class="step-detail">
+            A trilha é o “container” do setor. Nomeie de forma clara para que qualquer colaborador identifique rapidamente (ex.: “Loja – Operações Diárias”).
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Criar o Módulo dentro da trilha</h4>
+          <p>Dentro da trilha, adicione um módulo para cada rotina que terá POP.</p>
+          <div class="step-detail">
+            Cada módulo corresponde a uma rotina (e, em geral, a uma futura Tarefa Recorrente). Informe título, descrição curta e a ordem na trilha.
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Anexar o PDF do POP</h4>
+          <p>No módulo, faça o upload do arquivo PDF com o procedimento operacional.</p>
+          <div class="step-detail">
+            <ul>
+              <li>O PDF deve descrever o passo a passo de forma objetiva</li>
+              <li>Inclua o que verificar, onde registrar e o que anexar como evidência</li>
+              <li>Depois de salvo, esse módulo fica disponível para vincular nas Tarefas Recorrentes</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Vincular o módulo na Tarefa Recorrente</h4>
+          <p>Ao criar ou editar a recorrente, selecione o módulo no campo “Módulo de Treinamento”.</p>
+          <div class="step-detail">
+            Com o vínculo feito, toda vez que o BIP gerar o cartão, o responsável terá acesso direto ao PDF do POP.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mockup" style="margin-top:1.5rem;">
+      <div class="mockup-bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <span class="title">BIP · POPs de Tarefas · Novo Módulo</span>
+      </div>
+      <div class="mockup-body">
+        <div class="form-row">
+          <label>Trilha *</label>
+          <div class="form-fake filled">Loja – Operações Diárias</div>
+        </div>
+        <div class="form-row">
+          <label>Título do Módulo *</label>
+          <div class="form-fake filled">Conferência de Validade</div>
+        </div>
+        <div class="form-row">
+          <label>Descrição</label>
+          <div class="form-fake">Procedimento para conferir produtos próximos do vencimento e registrar no sistema.</div>
+        </div>
+        <div class="form-row">
+          <label>Arquivo POP (PDF) *</label>
+          <div class="form-fake filled">📄 POP_Conferencia_Validade.pdf</div>
+        </div>
+        <div style="margin-top:0.5rem;">
+          <span class="btn-fake">Salvar módulo</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>Para o coordenador:</strong> ao planejar uma nova rotina no setor, comece pelo PDF do POP. Depois cadastre trilha e módulo. Só então configure a Tarefa Recorrente. Essa ordem evita bloqueio no formulário da recorrente.
+    </div>
+  </section>
+
+  <!-- 7. CICLO -->
+  <section id="ciclo">
+    <h2><span class="num">7</span> O ciclo completo no BIP</h2>
+    <p class="section-sub">Assim a ferramenta fecha o ciclo de gestão de rotinas no seu setor.</p>
+
+    <div class="why-grid">
+      <div class="why-item">
+        <h4>1. Documentar o padrão</h4>
+        <p>Elaborar o PDF do POP e cadastrar trilha + módulo na Central de Treinamentos.</p>
+      </div>
+      <div class="why-item">
+        <h4>2. Definir a rotina</h4>
+        <p>Criar a Tarefa Recorrente com frequência, prazos, responsáveis e vínculo ao módulo.</p>
+      </div>
+      <div class="why-item">
+        <h4>3. Capacitar a equipe</h4>
+        <p>Trilhas no Educa Permanente com o POP disponível para consulta.</p>
+      </div>
+      <div class="why-item">
+        <h4>4. Executar com evidência</h4>
+        <p>Kanban + anexos obrigatórios geram prova de conformidade.</p>
+      </div>
+      <div class="why-item">
+        <h4>5. Monitorar</h4>
+        <p>Painel de Acompanhamento e Relatórios e SLA.</p>
+      </div>
+      <div class="why-item">
+        <h4>6. Melhorar</h4>
+        <p>Ajustar regras, prazos e POPs com base nos indicadores.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. COMO COMEÇAR -->
+  <section id="comecar">
+    <h2><span class="num">8</span> Como começar no seu setor</h2>
+    <p class="section-sub">Roteiro prático para o coordenador aplicar.</p>
+
+    <div class="steps">
+      <div class="step-item open" onclick="this.classList.toggle('open')">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Liste as rotinas que se repetem</h4>
+          <p>O que a equipe faz todo dia, toda semana ou todo mês e não pode falhar?</p>
+          <div class="step-detail">
+            Exemplos genéricos: conferências, fechamentos, envios de relatório, validações, limpezas programadas, revisões de documento, checklists de abertura ou fechamento.
+          </div>
+        </div>
+      </div>
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Escolha 2 ou 3 para começar</h4>
+          <p>Não tente automatizar tudo de uma vez. Comece pelas mais críticas ou que mais geram esquecimento.</p>
+        </div>
+      </div>
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Crie o POP (PDF) + trilha + módulo</h4>
+          <p>Documente o passo a passo em PDF, cadastre a trilha e o módulo. Só depois vá para a recorrente.</p>
+        </div>
+      </div>
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Crie a Tarefa Recorrente vinculando o módulo</h4>
+          <p>Configure frequência, prazos e responsáveis, e selecione o módulo de POP no formulário.</p>
+        </div>
+      </div>
+      <div class="step-item" onclick="this.classList.toggle('open')">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h4>Acompanhe na primeira semana</h4>
+          <p>Use o Painel de Acompanhamento. Ajuste prazos e responsáveis se necessário.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  BIP · Farmácia Permanente · <a href="https://bip.farmaciapermanente.com.br" target="_blank">bip.farmaciapermanente.com.br</a>
+  <br><span style="font-size:0.8rem; opacity:0.8;">Apresentação para coordenadores · Tarefas Recorrentes e POPs de Tarefas</span>
+</footer>
+
+<script>
+  function showTab(e, id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById(id).classList.add('active');
+  }
+  const sections = document.querySelectorAll('section[id]');
+  window.addEventListener('scroll', () => {
+    let cur = '';
+    sections.forEach(s => {
+      if (scrollY >= s.offsetTop - 100) cur = s.id;
+    });
+    document.querySelectorAll('nav a').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + cur);
+    });
+  });
+</script>
+</body>
+</html>
